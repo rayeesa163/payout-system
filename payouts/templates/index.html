@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Payout System</title>
+
+    <style>
+        body {
+            font-family: Arial;
+            background: #f5f7fa;
+            display: flex;
+            justify-content: center;
+            padding: 40px;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 420px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+        }
+
+        button {
+            background: green;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            background: gray;
+        }
+
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e8f5e9;
+        }
+
+        table {
+            width: 100%;
+            margin-top: 10px;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 8px;
+            border: 1px solid #ccc;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+    <h1>💰 Payout System</h1>
+
+    <!-- CREATE -->
+    <h3>Create Payout</h3>
+    <form id="createForm">
+        <input id="merchant" placeholder="Merchant ID" required>
+        <input id="amount" placeholder="Amount (paise)" required>
+        <input id="bank" placeholder="Bank ID" required>
+        <button type="submit">Create</button>
+    </form>
+
+    <div id="createResult" class="result"></div>
+
+    <!-- VIEW -->
+    <h3>View Payout</h3>
+    <form id="viewForm">
+        <input id="payoutId" placeholder="Payout ID" required>
+        <button type="submit">View</button>
+    </form>
+
+    <button id="processBtn" onclick="processPayout()">Process Payout</button>
+
+    <div id="viewResult" class="result"></div>
+
+    <!-- DASHBOARD -->
+    <h3>📊 All Payouts</h3>
+    <button onclick="loadPayouts()">Load Dashboard</button>
+
+    <table id="table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Merchant</th>
+                <th>Amount</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<script>
+// CREATE
+document.getElementById("createForm").addEventListener("submit", async function(e){
+    e.preventDefault();
+
+    const res = await fetch("/api/v1/payouts/", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            merchant: document.getElementById("merchant").value,
+            amount_paise: document.getElementById("amount").value,
+            bank_account_id: document.getElementById("bank").value
+        })
+    });
+
+    const data = await res.json();
+
+    document.getElementById("createResult").innerText =
+        "✅ Created | ID: " + data.id + " | Status: " + data.status;
+
+    // auto-fill ID
+    document.getElementById("payoutId").value = data.id;
+});
+
+
+// VIEW
+document.getElementById("viewForm").addEventListener("submit", async function(e){
+    e.preventDefault();
+
+    const id = document.getElementById("payoutId").value;
+
+    const res = await fetch("/api/v1/payouts/" + id + "/");
+    const data = await res.json();
+
+    if (data.error) {
+        document.getElementById("viewResult").innerText = "❌ Not found";
+    } else {
+        document.getElementById("viewResult").innerText =
+            "💰 ID: " + data.id + " | Status: " + data.status + " | Amount: " + data.amount;
+    }
+});
+
+
+// PROCESS
+async function processPayout() {
+    const id = document.getElementById("payoutId").value;
+    const btn = document.getElementById("processBtn");
+
+    // UX improvement
+    btn.disabled = true;
+    btn.innerText = "Processing...";
+    document.getElementById("viewResult").innerText = "⏳ Processing...";
+
+    const res = await fetch("/api/v1/payouts/" + id + "/process/", {
+        method: "POST"
+    });
+
+    const data = await res.json();
+
+    document.getElementById("viewResult").innerText =
+        "🚀 Processed | ID: " + data.id + " | Status: " + data.status;
+
+    btn.disabled = false;
+    btn.innerText = "Process Payout";
+}
+
+
+// DASHBOARD
+async function loadPayouts() {
+    const res = await fetch("/api/v1/payouts/all/");
+    const data = await res.json();
+
+    const tbody = document.querySelector("#table tbody");
+    tbody.innerHTML = "";
+
+    data.forEach(p => {
+        const row = `
+            <tr>
+                <td>${p.id}</td>
+                <td>${p.merchant}</td>
+                <td>${p.amount}</td>
+                <td>${p.status}</td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
+    });
+}
+</script>
+
+</body>
+</html>
